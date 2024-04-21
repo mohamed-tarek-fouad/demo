@@ -1,5 +1,7 @@
 const express = require("express");
 const app = express();
+const { getAuth } = require("firebase-admin/auth");
+
 const cors = require("cors");
 const admin = require("firebase-admin");
 const Joi = require("joi");
@@ -25,6 +27,42 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   storageBucket: "gs://graduation-demo.appspot.com",
 });
+const authMiddleware = async (req, res, next) => {
+  try {
+    // Authentication for the customer account
+    // Should be used as a middleware for all customers
+    req.language = req.headers["accept-language"] || "en";
+    req.userType = req.headers["user-type"];
+
+    let idToken;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      // Read the ID Token from the Authorization header.
+      idToken = req.headers.authorization.split("Bearer ")[1];
+    } else if (req.cookies) {
+      // Read the ID Token from cookie.
+      idToken = req.cookies.__session;
+    } else {
+      throw new Error("Not Authenticated");
+    }
+
+    const { uid } = await getAuth().verifyIdToken(idToken);
+    const authUser = await getAuth().getUser(uid);
+    req.authUser = authUser;
+
+    const user = (
+      await admin.firestore().collection("users").where("authId", "==", uid).get()
+    ).docs[0].data();
+    if (user && user.status === "disabled") {
+      throw new Error("User is disabled");
+    }
+
+    req.user = user;
+
+    next();
+  } catch (error) {
+    throw new Error(error);
+  }
+};
 const signup = async (req, res) => {
   try {
     const { email, name, age, doctorPhone } = req.body;
@@ -45,8 +83,11 @@ const signup = async (req, res) => {
     if (validateUserExist.docs.length > 0) {
       return res.status(400).json({ message: "User already exist", status: "failed", data: {} });
     }
+    const docRef = admin.firestore().collection("users").doc(); // Create a document reference with an auto-generated ID
 
-    await admin.firestore().collection("users").doc().set({
+    // Set the data including the doc ID
+    await docRef.set({
+      id: docRef.id, // Include the document's ID in the data
       email,
       name,
       age,
@@ -59,7 +100,7 @@ const signup = async (req, res) => {
 };
 const findUser = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = req.user.id;
     const user = await admin.firestore().collection("users").doc(id).get();
     if (!user) {
       return res.status(400).json({ message: "User not found", status: "failed", data: {} });
@@ -72,39 +113,12 @@ const findUser = async (req, res) => {
     res.status(400).json({ message: error.message, status: "failed", data: {} });
   }
 };
-const pdf = async (req, res) => {
-  const id = req.params.id;
 
-  const data = await admin.firestore().collection("users").doc(id).collection("heartRate").get();
-  const bucket = admin.storage().bucket();
-  const doc = new PDFDocument();
-  doc.pipe(fs.createWriteStream(outputPath));
-
-  doc.text("Data Table", { align: "center" });
-
-  // Table header
-  doc
-    .moveDown()
-    .fontSize(12)
-    .text("Column 1", { continued: true, width: 240, align: "left" })
-    .text("Column 2", { align: "right" });
-
-  // Add data rows
-  data.forEach((row) => {
-    doc
-      .moveDown()
-      .fontSize(10)
-      .text(row.column1, { continued: true, width: 240, align: "left" })
-      .text(row.column2, { align: "right" });
-  });
-
-  doc.end();
-};
 app.use(cors({ origin: true }));
 app.use(express.json());
 
 app.post("/signup", signup);
-app.get("/findUser/:id", findUser);
+app.get("/findUser", authMiddleware, findUser);
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
