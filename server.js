@@ -28,6 +28,7 @@ admin.initializeApp({
   storageBucket: "gs://graduation-demo.appspot.com",
 });
 const authMiddleware = async (req, res, next) => {
+  ///////auth table register!!!!!!!!!!!!
   try {
     // Authentication for the customer account
     // Should be used as a middleware for all customers
@@ -65,7 +66,7 @@ const authMiddleware = async (req, res, next) => {
 };
 const signup = async (req, res) => {
   try {
-    const { email, name, age, doctorPhone } = req.body;
+    const { email, name, age, doctorPhone, doctorName } = req.body;
     Joi.assert(
       req.body,
       Joi.object({
@@ -73,6 +74,7 @@ const signup = async (req, res) => {
         name: Joi.string().required(),
         age: Joi.number().required(),
         doctorPhone: Joi.string().required(),
+        doctorName: Joi.string().required(),
       })
     );
     const validateUserExist = await admin
@@ -92,6 +94,7 @@ const signup = async (req, res) => {
       name,
       age,
       doctorPhone,
+      doctorName,
     });
     res.status(200).json({ message: "User created successfully", status: "success", data: {} });
   } catch (error) {
@@ -104,16 +107,33 @@ const findUser = async (req, res) => {
     const user = await admin.firestore().collection("users").doc(id).get();
     if (!user) {
       return res.status(400).json({ message: "User not found", status: "failed", data: {} });
-    } else {
-      res
-        .status(200)
-        .json({ message: "User found successfully", status: "success", data: user.data() });
     }
+
+    res
+      .status(200)
+      .json({ message: "User found successfully", status: "success", data: user.data() });
+    const predictedData = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.id)
+      .collection("predicted")
+      .orderBy("createdAt")
+      .limit(10)
+      .get();
+    const predicted = predictedData.map((doc) => {
+      return doc.data();
+    });
+    res.status(200).json({
+      message: "User found successfully",
+      status: "success",
+      data: { ...user.data(), predicted },
+    });
   } catch (error) {
     res.status(400).json({ message: error.message, status: "failed", data: {} });
   }
+  // fetch latest 10 documents for certain user
 };
-
+// fetch latest 10 documents for certain user
 app.use(cors({ origin: true }));
 app.use(express.json());
 
