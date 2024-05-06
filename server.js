@@ -77,6 +77,10 @@ const signup = async (req, res) => {
         doctorName: Joi.string().required(),
       })
     );
+    const user = await admin.auth().getUserByEmail(email);
+    if (!user) {
+      res.status(400).json({ message: "user not authenticated", status: "failed", data: {} });
+    }
     const validateUserExist = await admin
       .firestore()
       .collection("users")
@@ -95,6 +99,7 @@ const signup = async (req, res) => {
       age,
       doctorPhone,
       doctorName,
+      authId: user.uid,
     });
     res.status(200).json({ message: "User created successfully", status: "success", data: {} });
   } catch (error) {
@@ -131,9 +136,7 @@ const findUser = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message, status: "failed", data: {} });
   }
-  // fetch latest 10 documents for certain user
 };
-// fetch latest 10 documents for certain user
 app.use(cors({ origin: true }));
 app.use(express.json());
 
