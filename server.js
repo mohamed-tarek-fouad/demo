@@ -109,7 +109,7 @@ const signup = async (req, res) => {
 const findUser = async (req, res) => {
   try {
     const id = req.user.id;
-    const user = (await admin.firestore().collection("users").where(authId, "==", id).get())
+    const user = (await admin.firestore().collection("users").where("authId", "==", id).get())
       .docs[0];
     if (!user) {
       return res.status(400).json({ message: "User not found", status: "failed", data: {} });
