@@ -66,7 +66,7 @@ const authMiddleware = async (req, res, next) => {
 };
 const signup = async (req, res) => {
   try {
-    const { email, name, age, doctorPhone, doctorName } = req.body;
+    const { email, name, age, doctorPhone, doctorName, phoneNumber, gender, medication } = req.body;
     Joi.assert(
       req.body,
       Joi.object({
@@ -75,6 +75,9 @@ const signup = async (req, res) => {
         age: Joi.number().required(),
         doctorPhone: Joi.string().required(),
         doctorName: Joi.string().required(),
+        phoneNumber: Joi.string().required(),
+        gender: Joi.string().required(),
+        medication: Joi.string().required(),
       })
     );
     const user = await admin.auth().getUserByEmail(email);
@@ -100,6 +103,9 @@ const signup = async (req, res) => {
       doctorPhone,
       doctorName,
       authId: user.uid,
+      phoneNumber,
+      gender,
+      medication,
     });
     res.status(200).json({ message: "User created successfully", status: "success", data: {} });
   } catch (error) {
