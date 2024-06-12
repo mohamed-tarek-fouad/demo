@@ -50,14 +50,13 @@ const authMiddleware = async (req, res, next) => {
     const authUser = await getAuth().getUser(uid);
     req.authUser = authUser;
 
-    const user = (
-      await admin.firestore().collection("users").where("authId", "==", uid).get()
-    ).docs[0].data();
+    const user = (await admin.firestore().collection("users").where("authId", "==", uid).get())
+      .docs[0];
     if (user && user.status === "disabled") {
       throw new Error("User is disabled");
     }
 
-    req.user = user;
+    req.user = { ...user.data(), id: user.id };
 
     next();
   } catch (error) {
