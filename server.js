@@ -114,24 +114,25 @@ const signup = async (req, res) => {
 const findUser = async (req, res) => {
   try {
     const id = req.user.id;
-    const user = (await admin.firestore().collection("users").where("authId", "==", id).get())
-      .docs[0];
+    console.log(id);
+    const user = await admin.firestore().collection("users").doc(id).get();
+    console.log(user.data());
     if (!user) {
       return res.status(400).json({ message: "User not found", status: "failed", data: {} });
     }
 
-    res
-      .status(200)
-      .json({ message: "User found successfully", status: "success", data: user.data() });
+    // res
+    //   .status(200)
+    //   .json({ message: "User found successfully", status: "success", data: user.data() });
     const predictedData = await admin
       .firestore()
       .collection("users")
       .doc(user.id)
-      .collection("predicted")
-      .orderBy("createdAt")
+      .collection("Predicted")
+      .orderBy("created_at")
       .limit(10)
       .get();
-    const predicted = predictedData.map((doc) => {
+    const predicted = predictedData.docs.map((doc) => {
       return doc.data();
     });
     res.status(200).json({
