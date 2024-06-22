@@ -129,16 +129,27 @@ const findUser = async (req, res) => {
       .collection("users")
       .doc(user.id)
       .collection("Predicted")
-      .orderBy("created_at")
+      .orderBy("created_at", "desc")
+      .limit(10)
+      .get();
+    const filterdData = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.id)
+      .collection("Predicted")
+      .orderBy("created_at", "desc")
       .limit(10)
       .get();
     const predicted = predictedData.docs.map((doc) => {
       return doc.data();
     });
+    const filterd = filterdData.docs.map((doc) => {
+      return doc.data();
+    });
     res.status(200).json({
       message: "User found successfully",
       status: "success",
-      data: { ...user.data(), predicted },
+      data: { ...user.data(), predicted, filterd },
     });
   } catch (error) {
     res.status(400).json({ message: error.message, status: "failed", data: {} });
